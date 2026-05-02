@@ -1,0 +1,6 @@
+{
+  "name": "RoomSearch",
+  "description": "A premium hostel booking platform with room search, real-time owner chat, and secure booking management.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": []
+}

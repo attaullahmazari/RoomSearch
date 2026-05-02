@@ -1,0 +1,113 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information and role.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "owner", "admin"] },
+        "profileImage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "role", "createdAt"]
+    },
+    "Hostel": {
+      "title": "Hostel",
+      "description": "Hostel details for booking.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "city": { "type": "string" },
+        "area": { "type": "string" },
+        "price": { "type": "number" },
+        "facilities": { "type": "array", "items": { "type": "string" } },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "ownerId": { "type": "string" },
+        "isVerified": { "type": "boolean" },
+        "vacancies": { "type": "number" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "city", "price", "ownerId", "vacancies", "createdAt"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Hostel booking record.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "hostelId": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"] },
+        "totalPrice": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "hostelId", "status", "totalPrice", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "User review for a hostel.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "hostelId": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "hostelId", "rating", "comment", "createdAt"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "Saved hostels by users.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "hostelId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "hostelId", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Chat message between users.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "receiverId", "text", "createdAt"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "Chat session between two participants.",
+      "type": "object",
+      "properties": {
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "lastMessage": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participants", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "users": { "schema": "User", "description": "User profiles" },
+    "hostels": { "schema": "Hostel", "description": "Hostel listings" },
+    "bookings": { "schema": "Booking", "description": "Hostel bookings" },
+    "reviews": { "schema": "Review", "description": "Hostel reviews" },
+    "favorites": { "schema": "Favorite", "description": "User favorites" },
+    "chats": { "schema": "Chat", "description": "Conversations" },
+    "chats/{chatId}/messages": { "schema": "Message", "description": "Messages in a chat" }
+  }
+}

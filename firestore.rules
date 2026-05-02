@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isAdmin() { 
+      return isSignedIn() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function isVerifiedUser() { return isSignedIn() && (request.auth.token.email_verified == true || isAdmin()); }
+
+    // System Notifications
+    match /notifications/{notificationId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // User Rules
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.keys().hasAll(['uid', 'email', 'name', 'role', 'createdAt']) &&
+               data.keys().size() == 5 &&
+               data.uid == request.auth.uid &&
+               data.email is string && data.email.size() <= 200 &&
+               data.name is string && data.name.size() <= 100 &&
+               data.role in ['student', 'owner'] &&
+               data.createdAt == request.time;
+      }
+
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if (isOwner(userId) || isAdmin());
+      allow update: if isOwner(userId) || isAdmin();
+    }
+
+    // Hostel Rules
+    match /hostels/{hostelId} {
+      function isValidHostel(data) {
+        return data.keys().hasAll(['title', 'city', 'area', 'price', 'ownerId', 'isVerified', 'vacancies', 'createdAt', 'images', 'facilities', 'lat', 'lng', 'videoUrl']) &&
+               data.title is string && data.title.size() <= 200 &&
+               data.city is string && data.city.size() <= 50 &&
+               data.area is string && data.area.size() <= 100 &&
+               data.price is number && data.price >= 0 &&
+               data.ownerId == request.auth.uid &&
+               data.vacancies is number && data.vacancies >= 0 &&
+               data.lat is number && data.lng is number &&
+               data.videoUrl is string &&
+               data.createdAt == request.time &&
+               data.images is list && data.images.size() <= 10 &&
+               data.facilities is list && data.facilities.size() <= 20;
+      }
+
+      allow read: if true; // Public listings
+      allow create: if isVerifiedUser() && (isValidHostel(incoming()) || isAdmin());
+      allow update: if isVerifiedUser() && (isOwner(existing().ownerId) || isAdmin());
+      allow delete: if isVerifiedUser() && (isOwner(existing().ownerId) || isAdmin());
+    }
+
+    // Booking Rules
+    match /bookings/{bookingId} {
+      function isValidBooking(data) {
+        return data.studentId == request.auth.uid &&
+               data.status == 'pending' &&
+               data.createdAt == request.time;
+      }
+
+      allow read: if isSignedIn() && (isOwner(existing().studentId) || isOwner(existing().ownerId));
+      allow list: if isSignedIn() && (resource.data.studentId == request.auth.uid || resource.data.ownerId == request.auth.uid);
+      allow create: if isVerifiedUser() && 
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student' &&
+                      isValidBooking(incoming());
+      
+      allow update: if isVerifiedUser() && (
+        // Action: Owner Confirm/Cancel
+        (isOwner(existing().ownerId) && incoming().diff(existing()).affectedKeys().hasOnly(['status']) && incoming().status in ['confirmed', 'cancelled']) ||
+        // Action: Student Cancel
+        (isOwner(existing().studentId) && incoming().diff(existing()).affectedKeys().hasOnly(['status']) && incoming().status == 'cancelled')
+      );
+    }
+
+    // Chat Rules
+    match /chats/{chatId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow create: if isVerifiedUser() && request.auth.uid in incoming().participants;
+      allow update: if isVerifiedUser() && request.auth.uid in existing().participants &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'updatedAt']) &&
+                      incoming().updatedAt == request.time;
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow create: if isVerifiedUser() && 
+                        request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants &&
+                        incoming().senderId == request.auth.uid &&
+                        incoming().createdAt == request.time;
+      }
+    }
+    
+    // Admins collection (read-only for rules)
+    match /admins/{adminId} {
+      allow read: if false; 
+    }
+  }
+}
